@@ -18,4 +18,5 @@ public interface BagDbInterface {
     void drop ();
 
     long getCount ();
+    public String getName ();
 }

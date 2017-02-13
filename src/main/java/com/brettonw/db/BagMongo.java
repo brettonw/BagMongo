@@ -24,30 +24,54 @@ public class BagMongo implements BagDbInterface {
 
     private static final Map<MongoClientURI, MongoClient> MONGO_CLIENTS = new HashMap<> ();
 
+    private String name;
     private MongoCollection<Document> collection;
 
-    public BagMongo (MongoClientURI clientUri, String collectionName) {
+    private BagMongo (String name, MongoCollection<Document> collection) {
+        this.name = name;
+        this.collection = collection;
+    }
+
+    public static BagMongo connect (MongoClientURI clientUri, String collectionName) {
+        // try to get the client
         MongoClient mongoClient = MONGO_CLIENTS.get (clientUri);
         if (mongoClient == null) {
-            mongoClient = new MongoClient(clientUri);
+            mongoClient = new MongoClient (clientUri);
+            try {
+                mongoClient.getAddress ();
+            } catch (Exception exception) {
+                log.error ("Failed to connect to (" + clientUri + ")", exception);
+                return null;
+            }
             MONGO_CLIENTS.put (clientUri, mongoClient);
         }
 
-        MongoDatabase database = mongoClient.getDatabase("BagMongo");
-        collection = database.getCollection("test");
+        // try to get the collection
+        MongoDatabase database = mongoClient.getDatabase ("BagMongo" );
+        MongoCollection<Document> collection = database.getCollection ("test" );
         if (collection != null) {
-            log.info ("Connected to \"" + collectionName + "\"");
+            log.info ("Connected to \"" + collectionName + "\"" );
+            return new BagMongo (collectionName, collection);
         } else {
-            log.error ("Failed to connect to \"" + collectionName + "\"");
+            log.error ("Failed to connect to \"" + collectionName + "\", (UNKNOWN ERROR)" );
+            return null;
         }
     }
 
-    public BagMongo (String connectionString, String collectionName) {
-        this (new MongoClientURI (connectionString), collectionName);
+    public static BagMongo connect (String connectionString, String collectionName) {
+        MongoClientURI mongoClientUri = null;
+        try {
+            mongoClientUri = new MongoClientURI (connectionString);
+        } catch (Exception exception) {
+            log.error ("Failed to connect to \"" + collectionName + "\"", exception);
+            return null;
+        }
+
+        return connect (mongoClientUri, collectionName);
     }
 
-    public BagMongo (String collectionName) {
-        this ("mongodb://localhost:27017", collectionName);
+    public static BagMongo connect (String collectionName) {
+        return connect ("mongodb://localhost:27017", collectionName);
     }
 
     public BagDbInterface put (BagObject bagObject) {
@@ -64,18 +88,20 @@ public class BagMongo implements BagDbInterface {
     }
 
     private Bson buildQuery (String queryJson) {
-        BagObject queryBagObject = BagObjectFrom.string (queryJson, MimeType.JSON);
-        if (queryBagObject != null) {
-            int count = queryBagObject.getCount ();
-            String[] keys = queryBagObject.keys ();
-            if (count > 1) {
-                Bson[] bsons = new Bson[count];
-                for (int i = 0; i < count; ++i) {
-                    bsons[i] = Filters.eq (keys[i], queryBagObject.getString (keys[i]));
+        if (queryJson != null) {
+            BagObject queryBagObject = BagObjectFrom.string (queryJson, MimeType.JSON);
+            if (queryBagObject != null) {
+                int count = queryBagObject.getCount ();
+                String[] keys = queryBagObject.keys ();
+                if (count > 1) {
+                    Bson[] bsons = new Bson[count];
+                    for (int i = 0; i < count; ++i) {
+                        bsons[i] = Filters.eq (keys[i], queryBagObject.getString (keys[i]));
+                    }
+                    return Filters.and (bsons);
+                } else if (count == 1) {
+                    return Filters.eq (keys[0], queryBagObject.getString (keys[0]));
                 }
-                return Filters.and (bsons);
-            } else if (count == 1) {
-                return Filters.eq (keys[0], queryBagObject.getString (keys[0]));
             }
         }
         return new Document ();
@@ -105,7 +131,8 @@ public class BagMongo implements BagDbInterface {
 
     public BagArray getMany (String queryJson) {
         final BagArray bagArray = new BagArray ();
-        collection.find (Document.parse (queryJson)).forEach (
+        Bson filter = buildQuery (queryJson);
+        collection.find (filter).forEach (
                 (Block<Document>) document -> bagArray.add (extract (document))
         );
         return bagArray;
@@ -120,12 +147,14 @@ public class BagMongo implements BagDbInterface {
     }
 
     public BagDbInterface delete (String queryJson) {
-        collection.deleteOne (Document.parse (queryJson));
+        Bson filter = buildQuery (queryJson);
+        collection.deleteOne (filter);
         return this;
     }
 
     public BagDbInterface deleteMany (String queryJson) {
-        collection.deleteMany (Document.parse (queryJson));
+        Bson filter = buildQuery (queryJson);
+        collection.deleteMany (filter);
         return this;
     }
 
@@ -136,9 +165,14 @@ public class BagMongo implements BagDbInterface {
 
     public void drop () {
         collection.drop ();
+        log.info ("Dropped \"" + name + "\"" );
     }
 
     public long getCount () {
         return collection.count ();
+    }
+
+    public String getName () {
+        return name;
     }
 }
