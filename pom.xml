@@ -26,7 +26,7 @@
         <dependency>
             <groupId>com.brettonw</groupId>
             <artifactId>bag</artifactId>
-            <version>RELEASE</version>
+            <version>5.10.2</version>
         </dependency>
         <dependency>
             <groupId>org.mongodb</groupId>
