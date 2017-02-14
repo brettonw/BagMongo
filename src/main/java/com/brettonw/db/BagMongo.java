@@ -48,7 +48,7 @@ public class BagMongo implements BagDbInterface {
 
         // try to get the collection
         MongoDatabase database = mongoClient.getDatabase ("BagMongo" );
-        MongoCollection<Document> collection = database.getCollection ("test" );
+        MongoCollection<Document> collection = database.getCollection (collectionName );
         if (collection != null) {
             log.info ("Connected to \"" + collectionName + "\"" );
             return new BagMongo (collectionName, collection);
