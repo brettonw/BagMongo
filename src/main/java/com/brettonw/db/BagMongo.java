@@ -17,10 +17,15 @@ import org.bson.conversions.Bson;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.brettonw.db.Keys.COLLECTION_NAME;
+import static com.brettonw.db.Keys.CONNECTION_STRING;
+import static com.brettonw.db.Keys.DATABASE_NAME;
+
 public class BagMongo implements BagDbInterface {
     private static final Logger log = LogManager.getLogger (BagMongo.class);
 
     private static final String ID_KEY = "_id";
+    private static final String LOCALHOST_DEFAULT = "mongodb://localhost:27017";
 
     private static final Map<MongoClientURI, MongoClient> MONGO_CLIENTS = new HashMap<> ();
 
@@ -71,11 +76,23 @@ public class BagMongo implements BagDbInterface {
     }
 
     public static BagMongo connect (String databaseName, String collectionName) {
-        return connect ("mongodb://localhost:27017", databaseName, collectionName);
+        return connect (LOCALHOST_DEFAULT, databaseName, collectionName);
     }
 
     public static BagMongo connect (String collectionName) {
         return connect (collectionName, collectionName);
+    }
+
+    public static BagMongo connect (BagObject configuration) {
+        String collectionName = configuration.getString (COLLECTION_NAME);
+        if (collectionName != null) {
+            String connectionString = configuration.has (CONNECTION_STRING) ? configuration.getString (CONNECTION_STRING) : LOCALHOST_DEFAULT;
+            String databaseName = configuration.has (DATABASE_NAME) ? configuration.getString (DATABASE_NAME) : collectionName;
+            return connect (connectionString, databaseName, collectionName);
+        } else {
+            log.error ("Invalid configuration (missing '" + COLLECTION_NAME + "')");
+            return null;
+        }
     }
 
     public BagDbInterface put (BagObject bagObject) {

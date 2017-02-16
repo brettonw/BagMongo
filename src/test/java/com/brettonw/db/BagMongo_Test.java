@@ -5,8 +5,11 @@ import com.brettonw.bag.BagObject;
 import com.brettonw.bag.formats.MimeType;
 import org.junit.Test;
 
+import static com.brettonw.db.Keys.COLLECTION_NAME;
+import static com.brettonw.db.Keys.CONNECTION_STRING;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class BagMongo_Test {
     private static final String TEST_COLLECTION_NAME = "Test";
@@ -172,13 +175,30 @@ public class BagMongo_Test {
     // sad path...
     @Test
     public void test9 () {
-        BagMongo bagMongo = BagMongo.connect ("bongo", "bongo" );
+        BagMongo bagMongo = BagMongo.connect ("bongo", "bongo", "bongo");
         assertEquals (null, bagMongo);
     }
 
     @Test
     public void test10 () {
-        BagMongo bagMongo = BagMongo.connect ("mongodb://bongo", "bongo" );
+        BagMongo bagMongo = BagMongo.connect ("mongodb://bongo", "bongo", "bongo");
+        assertEquals (null, bagMongo);
+    }
+
+    @Test
+    public void testConfiguration () {
+        BagObject configuration = BagObject.open (COLLECTION_NAME, "bongo");
+        BagMongo bagMongo = BagMongo.connect (configuration);
+        assertNotEquals (null, bagMongo);
+        bagMongo.put (BagObject.open ("xxx", "yyy"));
+        assertTrue (bagMongo.getCount () == 1);
+        bagMongo.drop ();
+    }
+
+    @Test
+    public void testBadConfiguration () {
+        BagObject configuration = BagObject.open (CONNECTION_STRING, "xxx");
+        BagMongo bagMongo = BagMongo.connect (configuration);
         assertEquals (null, bagMongo);
     }
 }
