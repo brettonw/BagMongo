@@ -54,13 +54,9 @@ public class BagMongo implements BagDbInterface {
         // try to get the collection
         MongoDatabase database = mongoClient.getDatabase (databaseName);
         MongoCollection<Document> collection = database.getCollection (collectionName);
-        if (collection != null) {
-            log.info ("Connected to \"" + collectionName + "\"");
-            return new BagMongo (collectionName, collection);
-        } else {
-            log.error ("Failed to connect to \"" + collectionName + "\", (UNKNOWN ERROR)");
-            return null;
-        }
+        // XXX I am unable to determine a failure case here, so I am choosing to ignore the possibility
+        log.info ("Connected to \"" + collectionName + "\"");
+        return new BagMongo (collectionName, collection);
     }
 
     public static BagMongo connect (String connectionString, String databaseName, String collectionName) {
