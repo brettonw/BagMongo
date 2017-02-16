@@ -61,7 +61,7 @@ public interface BagDbInterface extends AutoCloseable {
     /**
      *
      */
-    void drop ();
+    void drop () throws Exception;
 
     /**
      *

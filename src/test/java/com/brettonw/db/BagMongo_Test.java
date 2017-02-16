@@ -3,22 +3,26 @@ package com.brettonw.db;
 import com.brettonw.bag.BagArray;
 import com.brettonw.bag.BagObject;
 import com.brettonw.bag.formats.MimeType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Test;
 
 import java.util.Map;
 
-import static com.brettonw.db.Keys.COLLECTION_NAME;
-import static com.brettonw.db.Keys.CONNECTION_STRING;
+import static com.brettonw.db.Keys.*;
 import static org.junit.Assert.*;
 
 public class BagMongo_Test {
+    private static final Logger log = LogManager.getLogger (BagMongo_Test.class);
+
     private static final String TEST_COLLECTION_NAME = "Test";
     private static final String TEST_NAME = "Test.Test";
     private BagArray testBagArray;
     private String queryJson;
     private String queryManyJson;
 
-    public BagMongo_Test () {
+    public BagMongo_Test () throws Exception {
+
         testBagArray = new BagArray ()
                 .add (new BagObject ()
                         .put ("id", 1)
@@ -44,7 +48,7 @@ public class BagMongo_Test {
         queryJson = new BagObject ().put ("id", 2).toString (MimeType.JSON);
         queryManyJson = new BagObject ().put ("payload", "medium" ).toString (MimeType.JSON);
 
-        // ensure the database is fresh
+        // ensure the primary test database is fresh
         close (open ());
     }
 
@@ -54,15 +58,14 @@ public class BagMongo_Test {
         return bagMongo;
     }
 
-    private void close (BagDbInterface bagDb) {
+    private void close (BagDbInterface bagDb) throws Exception {
         bagDb.deleteAll ();
         assertEquals (0, bagDb.getCount ());
         bagDb.drop ();
     }
 
-    // happy path...
     @Test
-    public void test1 () {
+    public void testPutWithGet () throws Exception {
         BagDbInterface bagDb = open ()
                 .put (testBagArray.getBagObject (0))
                 .put (testBagArray.getBagObject (1))
@@ -77,7 +80,7 @@ public class BagMongo_Test {
     }
 
     @Test
-    public void test2 () {
+    public void testPutArrayWithGet () throws Exception {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
         assertEquals (TEST_NAME, bagDb.getName ());
@@ -89,7 +92,7 @@ public class BagMongo_Test {
     }
 
     @Test
-    public void test3 () {
+    public void testDelete () throws Exception {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
         assertEquals (TEST_NAME, bagDb.getName ());
@@ -103,7 +106,7 @@ public class BagMongo_Test {
     }
 
     @Test
-    public void test4 () {
+    public void testGetAll () throws Exception {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
         assertEquals (TEST_NAME, bagDb.getName ());
@@ -117,7 +120,7 @@ public class BagMongo_Test {
     }
 
     @Test
-    public void test5 () {
+    public void testGetMany () throws Exception {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
         assertEquals (TEST_NAME, bagDb.getName ());
@@ -132,7 +135,7 @@ public class BagMongo_Test {
     }
 
     @Test
-    public void test6 () {
+    public void testDeleteMany () throws Exception {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
         assertEquals (TEST_NAME, bagDb.getName ());
@@ -148,7 +151,7 @@ public class BagMongo_Test {
     }
 
     @Test
-    public void test7 () {
+    public void testGetWithMultipleMatchFields () throws Exception {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
         assertEquals (TEST_NAME, bagDb.getName ());
@@ -160,7 +163,7 @@ public class BagMongo_Test {
     }
 
     @Test
-    public void test8 () {
+    public void testGetManyWithNull () throws Exception {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
         assertEquals (TEST_NAME, bagDb.getName ());
@@ -173,21 +176,21 @@ public class BagMongo_Test {
         close (bagDb);
     }
 
-    // sad path...
     @Test
-    public void test9 () {
+    public void testConnectWithBadConnectionStringFails () {
         Map<String, BagMongo> collections = BagMongo.connect ("bongo", "bongo", "bongo");
         assertEquals (null, collections);
     }
 
     @Test
-    public void test10 () {
+    public void testConnectWithInvalidAddressFails () {
         Map<String, BagMongo> collections = BagMongo.connect ("mongodb://bongo", "bongo", "bongo");
         assertEquals (null, collections);
     }
 
     @Test
-    public void testConfiguration () {
+    public void testMinimumConfiguration () {
+        // minimum required configuration
         BagObject configuration = BagObject.open (COLLECTION_NAME, "bongo");
         Map<String, BagMongo> collections = BagMongo.connect (configuration);
         assertNotEquals (null, collections);
@@ -195,8 +198,24 @@ public class BagMongo_Test {
             bagMongo.put (BagObject.open ("xxx", "yyy"));
             assertTrue (bagMongo.getCount () == 1);
             bagMongo.drop ();
+        } catch (Exception exception) {}
+    }
+
+    @Test
+    public void testConfiguration () throws Exception {
+        BagObject configuration = BagObject
+                .open (DATABASE_NAME, "mvn-test")
+                .put (COLLECTION_NAMES, BagArray.open ("bongo"));
+
+        Map<String, BagMongo> collections = BagMongo.connect (configuration);
+        assertNotEquals (null, collections);
+        try (BagMongo bagMongo = collections.get ("bongo")) {
+            bagMongo.put (BagObject.open ("xxx", "yyy"));
+            assertTrue (bagMongo.getCount () == 1);
+            bagMongo.drop ();
+        } catch (Exception exception) {
+            throw (exception);
         }
-        catch (Exception exception)  {}
     }
 
     @Test

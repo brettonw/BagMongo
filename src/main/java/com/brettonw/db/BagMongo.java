@@ -18,9 +18,7 @@ import org.bson.conversions.Bson;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.brettonw.db.Keys.COLLECTION_NAME;
-import static com.brettonw.db.Keys.CONNECTION_STRING;
-import static com.brettonw.db.Keys.DATABASE_NAME;
+import static com.brettonw.db.Keys.*;
 
 public class BagMongo implements BagDbInterface, AutoCloseable {
     private static final Logger log = LogManager.getLogger (BagMongo.class);
@@ -135,15 +133,34 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
      * @return
      */
     public static Map<String, BagMongo> connect (BagObject configuration) {
-        String collectionName = configuration.getString (COLLECTION_NAME);
-        if (collectionName != null) {
-            String connectionString = configuration.has (CONNECTION_STRING) ? configuration.getString (CONNECTION_STRING) : LOCALHOST_DEFAULT;
-            String databaseName = configuration.has (DATABASE_NAME) ? configuration.getString (DATABASE_NAME) : collectionName;
-            return connect (connectionString, databaseName, collectionName);
-        } else {
-            log.error ("Invalid configuration (missing '" + COLLECTION_NAME + "')");
-            return null;
+        // get the database name and collection names
+        String databaseName = configuration.getString (DATABASE_NAME);
+        String[] collectionNames = null;
+        if (configuration.has (COLLECTION_NAMES)) {
+            BagArray collectionNamesBagArray = configuration.getBagArray (COLLECTION_NAMES);
+            if (collectionNamesBagArray != null) {
+                collectionNames = collectionNamesBagArray.toArray (String.class);
+            }
+        } else if (configuration.has (COLLECTION_NAME)) {
+            collectionNames = new String[] { configuration.getString (COLLECTION_NAME) };
+            if (databaseName == null) {
+                databaseName = collectionNames[0];
+                log.warn ("Using '" + COLLECTION_NAME + "' (" + databaseName + ") as '" + DATABASE_NAME + "' ");
+            }
         }
+
+        // at least one collection name is the minimum required configuration
+        if (databaseName != null) {
+            if ((databaseName != null) && (collectionNames != null) && (collectionNames.length > 0)) {
+                String connectionString = configuration.has (CONNECTION_STRING) ? configuration.getString (CONNECTION_STRING) : LOCALHOST_DEFAULT;
+                return connect (connectionString, databaseName, collectionNames);
+            } else {
+                log.error ("Invalid configuration (missing '" + COLLECTION_NAME + "' or '" + COLLECTION_NAMES + "')");
+            }
+        } else {
+            log.error ("Invalid configuration (missing '" + DATABASE_NAME + "')");
+        }
+        return null;
     }
 
     public BagDbInterface put (BagObject bagObject) {
@@ -235,7 +252,8 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
         return this;
     }
 
-    public void drop () {
+    public void drop () throws Exception {
+        close ();
         collection.drop ();
         log.info ("Dropped '" + getName () + "'" );
     }
