@@ -21,7 +21,7 @@ import static com.brettonw.db.Keys.COLLECTION_NAME;
 import static com.brettonw.db.Keys.CONNECTION_STRING;
 import static com.brettonw.db.Keys.DATABASE_NAME;
 
-public class BagMongo implements BagDbInterface {
+public class BagMongo implements BagDbInterface, AutoCloseable {
     private static final Logger log = LogManager.getLogger (BagMongo.class);
 
     private static final String ID_KEY = "_id";
@@ -35,6 +35,7 @@ public class BagMongo implements BagDbInterface {
     private BagMongo (String name, MongoCollection<Document> collection) {
         this.name = name;
         this.collection = collection;
+        log.info ("Connected to '" + name + "'");
     }
 
     public static BagMongo connect (MongoClientURI clientUri, String databaseName, String collectionName) {
@@ -45,7 +46,7 @@ public class BagMongo implements BagDbInterface {
             try {
                 mongoClient.getAddress ();
             } catch (Exception exception) {
-                log.error ("Failed to connect to (" + clientUri + ")", exception);
+                log.error ("Failed to connect to '" + clientUri + "'", exception);
                 return null;
             }
             MONGO_CLIENTS.put (clientUri, mongoClient);
@@ -55,8 +56,7 @@ public class BagMongo implements BagDbInterface {
         MongoDatabase database = mongoClient.getDatabase (databaseName);
         MongoCollection<Document> collection = database.getCollection (collectionName);
         // XXX I am unable to determine a failure case here, so I am choosing to ignore the possibility
-        log.info ("Connected to \"" + collectionName + "\"");
-        return new BagMongo (collectionName, collection);
+        return new BagMongo (databaseName + "/" + collectionName, collection);
     }
 
     public static BagMongo connect (String connectionString, String databaseName, String collectionName) {
@@ -64,7 +64,7 @@ public class BagMongo implements BagDbInterface {
         try {
             mongoClientUri = new MongoClientURI (connectionString);
         } catch (Exception exception) {
-            log.error ("Failed to connect to \"" + collectionName + "\"", exception);
+            log.error ("Failed to connect to '" + connectionString + "'", exception);
             return null;
         }
 
@@ -182,7 +182,13 @@ public class BagMongo implements BagDbInterface {
 
     public void drop () {
         collection.drop ();
-        log.info ("Dropped \"" + name + "\"" );
+        log.info ("Dropped '" + name + "'" );
+    }
+
+    @Override
+    public void close () throws Exception {
+        // XXX what should happen here?
+        log.info ("Closed '" + name + "'");
     }
 
     public long getCount () {

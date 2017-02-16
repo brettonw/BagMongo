@@ -13,6 +13,7 @@ import static org.junit.Assert.assertTrue;
 
 public class BagMongo_Test {
     private static final String TEST_COLLECTION_NAME = "Test";
+    private static final String TEST_NAME = "Test/Test";
     private BagArray testBagArray;
     private String queryJson;
     private String queryManyJson;
@@ -67,7 +68,7 @@ public class BagMongo_Test {
                 .put (testBagArray.getBagObject (1))
                 .put (testBagArray.getBagObject (2));
         assertEquals (3, bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         BagObject result = bagDb.get (queryJson);
         assertEquals (testBagArray.getBagObject (1), result);
@@ -79,7 +80,7 @@ public class BagMongo_Test {
     public void test2 () {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         BagObject result = bagDb.get (queryJson);
         assertEquals (testBagArray.getBagObject (1), result);
@@ -91,7 +92,7 @@ public class BagMongo_Test {
     public void test3 () {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         bagDb.delete (queryJson);
         BagObject result = bagDb.get (queryJson);
@@ -105,7 +106,7 @@ public class BagMongo_Test {
     public void test4 () {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         BagArray bagArray = bagDb.getAll ();
         assertNotEquals (null, bagArray);
@@ -119,7 +120,7 @@ public class BagMongo_Test {
     public void test5 () {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         BagArray bagArray = bagDb.getMany (queryManyJson);
         assertNotEquals (null, bagArray);
@@ -134,7 +135,7 @@ public class BagMongo_Test {
     public void test6 () {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         bagDb.deleteMany (queryManyJson);
         assertEquals (2, bagDb.getCount ());
@@ -150,7 +151,7 @@ public class BagMongo_Test {
     public void test7 () {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         BagObject result = bagDb.get (new BagObject ().put ("id", 3).put ("payload", "medium").toString (MimeType.JSON));
         assertEquals (testBagArray.getBagObject (2), result);
@@ -162,7 +163,7 @@ public class BagMongo_Test {
     public void test8 () {
         BagDbInterface bagDb = open ().putMany (testBagArray);
         assertEquals (testBagArray.getCount (), bagDb.getCount ());
-        assertEquals (TEST_COLLECTION_NAME, bagDb.getName ());
+        assertEquals (TEST_NAME, bagDb.getName ());
 
         BagArray bagArray = bagDb.getMany (null);
         assertNotEquals (null, bagArray);
