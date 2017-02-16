@@ -32,7 +32,7 @@ public class BagMongo implements BagDbInterface {
         this.collection = collection;
     }
 
-    public static BagMongo connect (MongoClientURI clientUri, String collectionName) {
+    public static BagMongo connect (MongoClientURI clientUri, String databaseName, String collectionName) {
         // try to get the client
         MongoClient mongoClient = MONGO_CLIENTS.get (clientUri);
         if (mongoClient == null) {
@@ -47,18 +47,18 @@ public class BagMongo implements BagDbInterface {
         }
 
         // try to get the collection
-        MongoDatabase database = mongoClient.getDatabase ("BagMongo" );
-        MongoCollection<Document> collection = database.getCollection (collectionName );
+        MongoDatabase database = mongoClient.getDatabase (databaseName);
+        MongoCollection<Document> collection = database.getCollection (collectionName);
         if (collection != null) {
-            log.info ("Connected to \"" + collectionName + "\"" );
+            log.info ("Connected to \"" + collectionName + "\"");
             return new BagMongo (collectionName, collection);
         } else {
-            log.error ("Failed to connect to \"" + collectionName + "\", (UNKNOWN ERROR)" );
+            log.error ("Failed to connect to \"" + collectionName + "\", (UNKNOWN ERROR)");
             return null;
         }
     }
 
-    public static BagMongo connect (String connectionString, String collectionName) {
+    public static BagMongo connect (String connectionString, String databaseName, String collectionName) {
         MongoClientURI mongoClientUri = null;
         try {
             mongoClientUri = new MongoClientURI (connectionString);
@@ -67,11 +67,15 @@ public class BagMongo implements BagDbInterface {
             return null;
         }
 
-        return connect (mongoClientUri, collectionName);
+        return connect (mongoClientUri, databaseName, collectionName);
+    }
+
+    public static BagMongo connect (String databaseName, String collectionName) {
+        return connect ("mongodb://localhost:27017", databaseName, collectionName);
     }
 
     public static BagMongo connect (String collectionName) {
-        return connect ("mongodb://localhost:27017", collectionName);
+        return connect (collectionName, collectionName);
     }
 
     public BagDbInterface put (BagObject bagObject) {
