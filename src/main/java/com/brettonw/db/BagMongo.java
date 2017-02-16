@@ -47,42 +47,53 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
      * @return
      */
     public static Map<String, BagMongo> connect (MongoClientURI clientUri, String databaseName, String... collectionNames) {
-        // the first step is to get the clients, BUT... clients are retained in a hash for
-        // pooling purposes, so the actual first step is to see if we've already connected
-        // to this client.
-        MongoClient mongoClient = MONGO_CLIENTS.get (clientUri);
-        if (mongoClient == null) {
-            // this is our first connection to the given client, so create the connection,
-            // and then check that we can actually reach it by trying to get its address.
-            // if that fails, we punt and return null...
-            mongoClient = new MongoClient (clientUri);
-            try {
-                mongoClient.getAddress ();
-            } catch (Exception exception) {
-                log.error ("Failed to connect to '" + clientUri + "'", exception);
-                return null;
+        // check that everything is valid...
+        if (databaseName != null) {
+            if ((collectionNames != null) && (collectionNames.length > 0)) {
+                // the first step is to get the clients, BUT... clients are retained in a hash for
+                // pooling purposes, so the actual first step is to see if we've already connected
+                // to this client.
+                MongoClient mongoClient = MONGO_CLIENTS.get (clientUri);
+                if (mongoClient == null) {
+                    try {
+                        // this is our first connection to the given client, so create the connection,
+                        // and then check that we can actually reach it by trying to get its address.
+                        // if that fails, we punt and return null...
+                        mongoClient = new MongoClient (clientUri);
+                        mongoClient.getAddress ();
+                    } catch (Exception exception) {
+                        log.error ("Failed to connect to '" + clientUri + "'", exception);
+                        return null;
+                    }
+
+                    // we successfully connected to a valid mongo client, so retain this client
+                    // for future use...
+                    MONGO_CLIENTS.put (clientUri, mongoClient);
+                }
+
+                // the next step is to get the database, and then the individual collections.
+                // MongoDb is very nice to the programmatic interface, basically it will create
+                // the database and collection if they don't already exist. The virtual connection
+                // doesn't become a reality until something is written to the database, so at this
+                // point there doesn't seem to be an actual failure case.
+                // XXX I have found that the first operation will fail if the name is the same as
+                // XXX another database or collection, differing only in case.
+                MongoDatabase database = mongoClient.getDatabase (databaseName);
+                Map<String, BagMongo> collections = new HashMap<> (collectionNames.length);
+                for (String collectionName : collectionNames) {
+                    MongoCollection<Document> collection = database.getCollection (collectionName);
+                    BagMongo bagMongo = new BagMongo (databaseName, collectionName, collection);
+                    collections.put (collectionName, bagMongo);
+                }
+                return collections;
+            } else {
+                log.error ("Invalid collectionNames");
             }
-
-            // we successfully connected to a valid mongo client, so retain this client
-            // for future use...
-            MONGO_CLIENTS.put (clientUri, mongoClient);
+        } else {
+            log.error ("Invalid databaseName");
         }
 
-        // the next step is to get the database, and then the individual collections.
-        // MongoDb is very nice to the programmatic interface, basically it will create
-        // the database and collection if they don't already exist. The virtual connection
-        // doesn't become a reality until something is written to the database, so at this
-        // point there doesn't seem to be an actual failure case.
-        // XXX I have found that the first operation will fail if the name is the same as
-        // XXX another database or collection, differing only in case.
-        MongoDatabase database = mongoClient.getDatabase (databaseName);
-        Map<String, BagMongo> collections = new HashMap<> (collectionNames.length);
-        for (String collectionName : collectionNames) {
-            MongoCollection<Document> collection = database.getCollection (collectionName);
-            BagMongo bagMongo = new BagMongo (databaseName, collectionName, collection);
-            collections.put (collectionName, bagMongo);
-        }
-        return collections;
+        return null;
     }
 
     /**
@@ -121,8 +132,10 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
      */
     public static BagMongo connectLocal (String collectionName) {
         Map<String, BagMongo>  collections = connectLocal (collectionName, collectionName);
-        for (BagMongo bagMongo : collections.values ()) {
-            return bagMongo;
+        if (collections != null) {
+            for (BagMongo bagMongo : collections.values ()) {
+                return bagMongo;
+            }
         }
         return null;
     }
@@ -145,18 +158,22 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
             collectionNames = new String[] { configuration.getString (COLLECTION_NAME) };
             if (databaseName == null) {
                 databaseName = collectionNames[0];
-                log.warn ("Using '" + COLLECTION_NAME + "' (" + databaseName + ") as '" + DATABASE_NAME + "' ");
+                log.warn ("Using '" + COLLECTION_NAME + "' (" + databaseName + ") as '" + DATABASE_NAME + "'");
             }
         }
 
-        // at least one collection name is the minimum required configuration
+        // now see if the database name is valid, we can't do anything without it
         if (databaseName != null) {
-            if ((databaseName != null) && (collectionNames != null) && (collectionNames.length > 0)) {
-                String connectionString = configuration.has (CONNECTION_STRING) ? configuration.getString (CONNECTION_STRING) : LOCALHOST_DEFAULT;
-                return connect (connectionString, databaseName, collectionNames);
-            } else {
-                log.error ("Invalid configuration (missing '" + COLLECTION_NAME + "' or '" + COLLECTION_NAMES + "')");
+            // at least one collection name is the minimum required configuration, but we
+            // can use the database name if nothing was provided
+            if ((collectionNames == null) || (collectionNames.length == 0)) {
+                collectionNames = new String[]{ databaseName };
+                log.warn ("Using '" + DATABASE_NAME + "' (" + databaseName + ") as '" + COLLECTION_NAME + "'");
             }
+
+            // and finally, get the connection string, or use localhost as the default
+            String connectionString = configuration.has (CONNECTION_STRING) ? configuration.getString (CONNECTION_STRING) : LOCALHOST_DEFAULT;
+            return connect (connectionString, databaseName, collectionNames);
         } else {
             log.error ("Invalid configuration (missing '" + DATABASE_NAME + "')");
         }

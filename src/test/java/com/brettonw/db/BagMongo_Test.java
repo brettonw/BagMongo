@@ -65,6 +65,15 @@ public class BagMongo_Test {
     }
 
     @Test
+    public void testGetNames () throws Exception {
+        BagMongo bagMongo = BagMongo.connectLocal (TEST_COLLECTION_NAME);
+        assertEquals (TEST_COLLECTION_NAME, bagMongo.getDatabaseName ());
+        assertEquals (TEST_COLLECTION_NAME, bagMongo.getCollectionName ());
+        assertEquals (TEST_NAME, bagMongo.getName ());
+        close (bagMongo);
+    }
+
+    @Test
     public void testPutWithGet () throws Exception {
         BagDbInterface bagDb = open ()
                 .put (testBagArray.getBagObject (0))
@@ -189,9 +198,40 @@ public class BagMongo_Test {
     }
 
     @Test
+    public void testConnectLocalWithNullFails () {
+        BagMongo bagMongo = BagMongo.connectLocal (null);
+        assertEquals (null, bagMongo);
+    }
+
+    @Test
+    public void testConnectLocalWithNullFails2 () {
+        Map<String, BagMongo> collections = BagMongo.connectLocal ("xxx", (String[])null);
+        assertEquals (null, collections);
+    }
+
+    @Test
+    public void testConnectLocalWithNullDatabaseNameFails () {
+        Map<String, BagMongo> collections = BagMongo.connectLocal (null, "xxx");
+        assertEquals (null, collections);
+    }
+
+    @Test
     public void testMinimumConfiguration () {
         // minimum required configuration
         BagObject configuration = BagObject.open (COLLECTION_NAME, "bongo");
+        Map<String, BagMongo> collections = BagMongo.connect (configuration);
+        assertNotEquals (null, collections);
+        try (BagMongo bagMongo = collections.get ("bongo")) {
+            bagMongo.put (BagObject.open ("xxx", "yyy"));
+            assertTrue (bagMongo.getCount () == 1);
+            bagMongo.drop ();
+        } catch (Exception exception) {}
+    }
+
+    @Test
+    public void testMinimumConfiguration2 () {
+        // minimum required configuration
+        BagObject configuration = BagObject.open (DATABASE_NAME, "bongo");
         Map<String, BagMongo> collections = BagMongo.connect (configuration);
         assertNotEquals (null, collections);
         try (BagMongo bagMongo = collections.get ("bongo")) {
@@ -221,13 +261,6 @@ public class BagMongo_Test {
     @Test
     public void testBadConfiguration () {
         BagObject configuration = BagObject.open (CONNECTION_STRING, "xxx");
-        Map<String, BagMongo> collections = BagMongo.connect (configuration);
-        assertEquals (null, collections);
-    }
-
-    @Test
-    public void testBadConfiguration2 () {
-        BagObject configuration = BagObject.open (DATABASE_NAME, TEST_COLLECTION_NAME);
         Map<String, BagMongo> collections = BagMongo.connect (configuration);
         assertEquals (null, collections);
     }
