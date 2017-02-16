@@ -224,4 +224,11 @@ public class BagMongo_Test {
         Map<String, BagMongo> collections = BagMongo.connect (configuration);
         assertEquals (null, collections);
     }
+
+    @Test
+    public void testBadConfiguration2 () {
+        BagObject configuration = BagObject.open (DATABASE_NAME, TEST_COLLECTION_NAME);
+        Map<String, BagMongo> collections = BagMongo.connect (configuration);
+        assertEquals (null, collections);
+    }
 }
