@@ -9,6 +9,7 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -29,19 +30,33 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
 
     private static final Map<MongoClientURI, MongoClient> MONGO_CLIENTS = new HashMap<> ();
 
-    private String name;
+    @Getter private String databaseName;
+    @Getter private String collectionName;
     private MongoCollection<Document> collection;
 
-    private BagMongo (String name, MongoCollection<Document> collection) {
-        this.name = name;
+    private BagMongo (String databaseName, String collectionName, MongoCollection<Document> collection) {
+        this.databaseName = databaseName;
+        this.collectionName = collectionName;
         this.collection = collection;
-        log.info ("Connected to '" + name + "'");
+        log.info ("Connected to '" + getName () + "'");
     }
 
-    public static BagMongo connect (MongoClientURI clientUri, String databaseName, String collectionName) {
-        // try to get the client
+    /**
+     *
+     * @param clientUri
+     * @param databaseName
+     * @param collectionNames
+     * @return
+     */
+    public static Map<String, BagMongo> connect (MongoClientURI clientUri, String databaseName, String... collectionNames) {
+        // the first step is to get the clients, BUT... clients are retained in a hash for
+        // pooling purposes, so the actual first step is to see if we've already connected
+        // to this client.
         MongoClient mongoClient = MONGO_CLIENTS.get (clientUri);
         if (mongoClient == null) {
+            // this is our first connection to the given client, so create the connection,
+            // and then check that we can actually reach it by trying to get its address.
+            // if that fails, we punt and return null...
             mongoClient = new MongoClient (clientUri);
             try {
                 mongoClient.getAddress ();
@@ -49,17 +64,37 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
                 log.error ("Failed to connect to '" + clientUri + "'", exception);
                 return null;
             }
+
+            // we successfully connected to a valid mongo client, so retain this client
+            // for future use...
             MONGO_CLIENTS.put (clientUri, mongoClient);
         }
 
-        // try to get the collection
+        // the next step is to get the database, and then the individual collections.
+        // MongoDb is very nice to the programmatic interface, basically it will create
+        // the database and collection if they don't already exist. The virtual connection
+        // doesn't become a reality until something is written to the database, so at this
+        // point there doesn't seem to be an actual failure case.
+        // XXX I have found that the first operation will fail if the name is the same as
+        // XXX another database or collection, differing only in case.
         MongoDatabase database = mongoClient.getDatabase (databaseName);
-        MongoCollection<Document> collection = database.getCollection (collectionName);
-        // XXX I am unable to determine a failure case here, so I am choosing to ignore the possibility
-        return new BagMongo (databaseName + "/" + collectionName, collection);
+        Map<String, BagMongo> collections = new HashMap<> (collectionNames.length);
+        for (String collectionName : collectionNames) {
+            MongoCollection<Document> collection = database.getCollection (collectionName);
+            BagMongo bagMongo = new BagMongo (databaseName, collectionName, collection);
+            collections.put (collectionName, bagMongo);
+        }
+        return collections;
     }
 
-    public static BagMongo connect (String connectionString, String databaseName, String collectionName) {
+    /**
+     *
+     * @param connectionString
+     * @param databaseName
+     * @param collectionNames
+     * @return
+     */
+    public static Map<String, BagMongo> connect (String connectionString, String databaseName, String... collectionNames) {
         MongoClientURI mongoClientUri = null;
         try {
             mongoClientUri = new MongoClientURI (connectionString);
@@ -68,18 +103,38 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
             return null;
         }
 
-        return connect (mongoClientUri, databaseName, collectionName);
+        return connect (mongoClientUri, databaseName, collectionNames);
     }
 
-    public static BagMongo connect (String databaseName, String collectionName) {
-        return connect (LOCALHOST_DEFAULT, databaseName, collectionName);
+    /**
+     *
+     * @param databaseName
+     * @param collectionNames
+     * @return
+     */
+    public static Map<String, BagMongo> connectLocal (String databaseName, String... collectionNames) {
+        return connect (LOCALHOST_DEFAULT, databaseName, collectionNames);
     }
 
-    public static BagMongo connect (String collectionName) {
-        return connect (collectionName, collectionName);
+    /**
+     *
+     * @param collectionName
+     * @return
+     */
+    public static BagMongo connectLocal (String collectionName) {
+        Map<String, BagMongo>  collections = connectLocal (collectionName, collectionName);
+        for (BagMongo bagMongo : collections.values ()) {
+            return bagMongo;
+        }
+        return null;
     }
 
-    public static BagMongo connect (BagObject configuration) {
+    /**
+     *
+     * @param configuration
+     * @return
+     */
+    public static Map<String, BagMongo> connect (BagObject configuration) {
         String collectionName = configuration.getString (COLLECTION_NAME);
         if (collectionName != null) {
             String connectionString = configuration.has (CONNECTION_STRING) ? configuration.getString (CONNECTION_STRING) : LOCALHOST_DEFAULT;
@@ -182,20 +237,24 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
 
     public void drop () {
         collection.drop ();
-        log.info ("Dropped '" + name + "'" );
+        log.info ("Dropped '" + getName () + "'" );
     }
 
     @Override
     public void close () throws Exception {
         // XXX what should happen here?
-        log.info ("Closed '" + name + "'");
+        log.info ("Closed '" + getName () + "'");
     }
 
+    /**
+     *
+     * @return
+     */
     public long getCount () {
         return collection.count ();
     }
 
     public String getName () {
-        return name;
+        return databaseName + "." + collectionName;
     }
 }
