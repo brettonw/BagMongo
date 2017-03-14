@@ -21,7 +21,6 @@
         <url>https://github.com:brettonw/bag-mongo.git</url>
     </scm>
 
-
     <dependencies>
         <dependency>
             <groupId>com.brettonw</groupId>
