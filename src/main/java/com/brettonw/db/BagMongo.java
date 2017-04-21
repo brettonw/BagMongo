@@ -18,13 +18,16 @@ import org.bson.conversions.Bson;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.brettonw.db.Keys.*;
-
 public class BagMongo implements BagDbInterface, AutoCloseable {
     private static final Logger log = LogManager.getLogger (BagMongo.class);
 
-    private static final String ID_KEY = "_id";
+    private static final String UNDERSCORE_ID = "_id";
     private static final String LOCALHOST_DEFAULT = "mongodb://localhost:27017";
+
+    public static final String CONNECTION_STRING = "connection-string";
+    public static final String DATABASE_NAME = "database-name";
+    public static final String COLLECTION_NAME = "collection-name";
+    public static final String COLLECTION_NAMES = "collection-names";
 
     private static final Map<MongoClientURI, MongoClient> MONGO_CLIENTS = new HashMap<> ();
 
@@ -221,7 +224,7 @@ public class BagMongo implements BagDbInterface, AutoCloseable {
             // Mongo adds "_id" if the posting object doesn't include it. we decide to allow
             // this, but to otherwise mask it from the user as it would lock us into the
             // Mongo API
-            bagObject = bagObject.select (new SelectKey (SelectType.EXCLUDE, ID_KEY));
+            bagObject = bagObject.select (new SelectKey (SelectType.EXCLUDE, UNDERSCORE_ID));
             return bagObject;
         }
         return null;

@@ -9,7 +9,7 @@ import org.junit.Test;
 
 import java.util.Map;
 
-import static com.brettonw.db.Keys.*;
+import static com.brettonw.db.BagMongo.*;
 import static org.junit.Assert.*;
 
 public class BagMongo_Test {
