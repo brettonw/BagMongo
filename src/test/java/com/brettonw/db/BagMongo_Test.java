@@ -74,6 +74,16 @@ public class BagMongo_Test {
     }
 
     @Test
+    public void testGetWithNoMatches () throws Exception {
+        // ensure the primary test database is fresh
+        close (open ());
+        BagDbInterface bagDb = open ();
+        BagObject result = bagDb.get (queryJson);
+        assertEquals (result, null);
+        close (bagDb);
+    }
+
+    @Test
     public void testPutWithGet () throws Exception {
         BagDbInterface bagDb = open ()
                 .put (testBagArray.getBagObject (0))
