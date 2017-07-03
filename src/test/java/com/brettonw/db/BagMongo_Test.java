@@ -2,6 +2,7 @@ package com.brettonw.db;
 
 import com.brettonw.bag.BagArray;
 import com.brettonw.bag.BagObject;
+import com.brettonw.bag.BagObjectFrom;
 import com.brettonw.bag.formats.MimeType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -254,12 +255,27 @@ public class BagMongo_Test {
     @Test
     public void testConfiguration () throws Exception {
         BagObject configuration = BagObject
-                .open (DATABASE_NAME, "mvn-test")
-                .put (COLLECTION_NAMES, BagArray.open ("bongo"));
+            .open (DATABASE_NAME, "mvn-test")
+            .put (COLLECTION_NAMES, BagArray.open ("bongo"));
 
         Map<String, BagMongo> collections = BagMongo.connect (configuration);
         assertNotEquals (null, collections);
         try (BagMongo bagMongo = collections.get ("bongo")) {
+            bagMongo.put (BagObject.open ("xxx", "yyy"));
+            assertTrue (bagMongo.getCount () == 1);
+            bagMongo.drop ();
+        } catch (Exception exception) {
+            throw (exception);
+        }
+    }
+
+    @Test
+    public void testRemoteConfiguration () throws Exception {
+        BagObject configuration = BagObjectFrom.resource (BagMongo_Test.class, "/configuration.json");
+
+        Map<String, BagMongo> collections = BagMongo.connect (configuration);
+        assertNotEquals (null, collections);
+        try (BagMongo bagMongo = collections.get ("collection-test")) {
             bagMongo.put (BagObject.open ("xxx", "yyy"));
             assertTrue (bagMongo.getCount () == 1);
             bagMongo.drop ();
